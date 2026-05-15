@@ -1,13 +1,10 @@
 uniform float uPixelRatio;
 uniform float uTime;
 uniform vec2 uResolution;
-uniform float uNoiseScaleX;
-uniform float uNoiseScaleY;
 uniform float uWarpStrength;
+uniform sampler2D uNoiseMap;
 varying vec2 vUv;
 varying vec3 vPos;
-
-#include ./snoise2d.glsl
 
 // draw a red circle of 200px radius with the provided origin
 vec3 drawCircle(vec2 coords, vec2 origin) {
@@ -67,7 +64,8 @@ void main() {
     vec3 c4 = vec3(0.97, 0.48, 0.08); // orange
     vec3 c5 = vec3(0.20, 0.65, 0.88); // teal/cyan
 
-    vec2 warpedUv = uv + vec2(snoise(uv * vec2(uNoiseScaleX, uNoiseScaleY) + t * 0.5), snoise(uv * vec2(uNoiseScaleX, uNoiseScaleY) * 0.93 - t * 0.3)) * uWarpStrength;
+    vec2 warpNoise = texture2D(uNoiseMap, vUv).rg * 2.0 - 1.0;
+    vec2 warpedUv = uv + warpNoise * uWarpStrength;
     float d1 = dot(warpedUv - p1, warpedUv - p1);
     float d2 = dot(warpedUv - p2, warpedUv - p2);
     float d3 = dot(warpedUv - p3, warpedUv - p3);

@@ -6,12 +6,13 @@ import { Perf } from "r3f-perf";
 import { useControls } from "leva";
 import vertexShader from "./shaders/vertex.glsl";
 import fragmentShader from "./shaders/fragment.glsl";
+import noiseFragmentShader from "./shaders/noise.glsl";
 
 export default function Experience() {
     const quadRef = useRef();
     const { noiseScaleX, noiseScaleY, warpStrength } = useControls({
         noiseScaleX: {
-            value: 0.75,
+            value: 1.4,
             min: 0.1,
             max: 5.0,
             step: 0.05,
@@ -33,6 +34,47 @@ export default function Experience() {
         },
     });
 
+    const noiseSceneRef = useRef(null);
+    const noiseCameraRef = useRef(null);
+    const noiseFBORef = useRef(null);
+    const noiseUniformsRef = useRef({
+        uTime: { value: 0 },
+        uNoiseScaleX: { value: 1.4 },
+        uNoiseScaleY: { value: 1.2 },
+    });
+
+    if (!noiseSceneRef.current) {
+        const rt = new THREE.WebGLRenderTarget(256, 256, {
+            format: THREE.RGBAFormat,
+            magFilter: THREE.LinearFilter,
+            minFilter: THREE.LinearFilter,
+        });
+        rt.texture.wrapS = THREE.MirroredRepeatWrapping;
+        rt.texture.wrapT = THREE.MirroredRepeatWrapping;
+        noiseFBORef.current = rt;
+
+        const scene = new THREE.Scene();
+        scene.add(
+            new THREE.Mesh(
+                new THREE.PlaneGeometry(2, 2),
+                new THREE.ShaderMaterial({
+                    vertexShader,
+                    fragmentShader: noiseFragmentShader,
+                    uniforms: noiseUniformsRef.current,
+                }),
+            ),
+        );
+        noiseSceneRef.current = scene;
+        noiseCameraRef.current = new THREE.OrthographicCamera(
+            -1,
+            1,
+            1,
+            -1,
+            0,
+            1,
+        );
+    }
+
     const uniformsRef = useRef({
         uResolution: {
             value: new THREE.Vector2(window.innerWidth, window.innerHeight),
@@ -43,19 +85,24 @@ export default function Experience() {
         uTime: {
             value: 0,
         },
-        uNoiseScaleX: { value: 0.75 },
-        uNoiseScaleY: { value: 1.2 },
         uWarpStrength: { value: 0.3 },
+        uNoiseMap: { value: noiseFBORef.current.texture },
     });
 
     useFrame((state, delta) => {
+        noiseUniformsRef.current.uTime.value += delta;
+        noiseUniformsRef.current.uNoiseScaleX.value = noiseScaleX;
+        noiseUniformsRef.current.uNoiseScaleY.value = noiseScaleY;
+        const { gl } = state;
+        gl.setRenderTarget(noiseFBORef.current);
+        gl.render(noiseSceneRef.current, noiseCameraRef.current);
+        gl.setRenderTarget(null);
+
         uniformsRef.current.uResolution.value.set(
             state.size.width,
             state.size.height,
         );
         uniformsRef.current.uTime.value += delta;
-        uniformsRef.current.uNoiseScaleX.value = noiseScaleX;
-        uniformsRef.current.uNoiseScaleY.value = noiseScaleY;
         uniformsRef.current.uWarpStrength.value = warpStrength;
     });
 
