@@ -33,6 +33,5 @@
 - [x] Add a good film grain layer, cheap stuff like a simple random function doesn't look good enough
 - [x] Add options for different palettes
 - [x] Add option to tune down the brightness of the pattern to cater for more use cases
-- [ ] Add option for vignette effect
-- [ ] Add options for different noise/distortion patterns
+- [x] Add options for different noise/distortion patterns
 - [x] Consider making it look better on mobile, right now the color pattern looks a bit squeezed on mobile

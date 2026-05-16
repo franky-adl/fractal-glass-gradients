@@ -32,40 +32,66 @@ const PALETTES = {
     ],
 };
 
+const PRESETS = {
+    Balanced: {
+        noiseScaleX: 1.4,
+        noiseScaleY: 1.0,
+        warpStrength: 0.3,
+        algo: "Algo1",
+    },
+    "Flow-like": {
+        noiseScaleX: 0.35,
+        noiseScaleY: 0.55,
+        warpStrength: 0.4,
+        algo: "Algo2",
+    },
+};
+
 export default function Experience() {
     const size = useThree((state) => state.size);
     const quadRef = useRef();
-    const {
-        palette,
-        noiseScaleX,
-        noiseScaleY,
-        warpStrength,
-        grainStrength,
-        fluteWidth,
-        fluteStrength,
-        patternBrightness,
-    } = useControls({
+    const [
+        {
+            palette,
+            noiseScaleX,
+            noiseScaleY,
+            warpStrength,
+            grainStrength,
+            fluteWidth,
+            fluteStrength,
+            patternBrightness,
+            animSpeed,
+            algo,
+            patternPreset,
+        },
+        set,
+    ] = useControls(() => ({
+        patternPreset: {
+            value: "Flow-like",
+            options: ["Balanced", "Flow-like"],
+            label: "Pattern Preset",
+        },
         palette: {
             value: "Neon Flux",
             options: ["Neon Flux", "Sunset", "Aurora"],
             label: "Color Palette",
         },
         noiseScaleX: {
-            value: 1.4,
+            value: 0.35,
             min: 0.1,
             max: 5.0,
             step: 0.05,
             label: "Noise Scale X",
         },
         noiseScaleY: {
-            value: 1,
+            value: 0.55,
             min: 0.1,
             max: 5.0,
             step: 0.05,
             label: "Noise Scale Y",
         },
         warpStrength: {
-            value: 0.3,
+            value: 0.4,
             min: 0.0,
             max: 2.0,
             step: 0.01,
@@ -99,11 +125,27 @@ export default function Experience() {
             step: 0.01,
             label: "Pattern Brightness",
         },
-    });
+        animSpeed: {
+            value: 0.12,
+            min: 0.0,
+            max: 1.0,
+            step: 0.01,
+            label: "Animation Speed",
+        },
+        algo: {
+            value: "Algo2",
+            options: ["Algo1", "Algo2"],
+            label: "Algo",
+        },
+    }));
 
     useEffect(() => {
         uniformsRef.current.uPixelRatio.value = window.devicePixelRatio;
     }, [size]);
+
+    useEffect(() => {
+        set(PRESETS[patternPreset]);
+    }, [patternPreset]);
 
     const noiseSceneRef = useRef(null);
     const noiseCameraRef = useRef(null);
@@ -112,6 +154,7 @@ export default function Experience() {
         uTime: { value: 0 },
         uNoiseScaleX: { value: 1.4 },
         uNoiseScaleY: { value: 1 },
+        uAnimSpeed: { value: 0.12 },
     });
 
     if (!noiseSceneRef.current) {
@@ -182,12 +225,14 @@ export default function Experience() {
         uC3: { value: new THREE.Vector3(...PALETTES["Neon Flux"][2]) },
         uC4: { value: new THREE.Vector3(...PALETTES["Neon Flux"][3]) },
         uC5: { value: new THREE.Vector3(...PALETTES["Neon Flux"][4]) },
+        uAlgo: { value: 1 },
     });
 
     useFrame((state, delta) => {
         noiseUniformsRef.current.uTime.value += delta;
         noiseUniformsRef.current.uNoiseScaleX.value = noiseScaleX;
         noiseUniformsRef.current.uNoiseScaleY.value = noiseScaleY;
+        noiseUniformsRef.current.uAnimSpeed.value = animSpeed;
         const { gl } = state;
         gl.setRenderTarget(noiseFBORef.current);
         gl.render(noiseSceneRef.current, noiseCameraRef.current);
@@ -215,6 +260,7 @@ export default function Experience() {
         uniformsRef.current.uC3.value.set(...pal[2]);
         uniformsRef.current.uC4.value.set(...pal[3]);
         uniformsRef.current.uC5.value.set(...pal[4]);
+        uniformsRef.current.uAlgo.value = algo === "Algo1" ? 0 : 1;
     });
 
     return (
