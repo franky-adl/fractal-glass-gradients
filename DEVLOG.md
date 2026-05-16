@@ -22,3 +22,15 @@
 - let's start with a sine
 - AI suggested an organic pattern with 5 gaussian blobs, and with some snoise warp, result is pretty good.
 - we could also try simplex noise, I'm thinking of interlaying 2 layers of noise, one rotated slightly like 30-60 degrees, so as to create some long curves like the pinterest ref
+
+### Film Grain effect
+
+- I reused the one I used for the water caustics project, put it on Figma and further increased the contrast for a bolder grain effect.
+- I had to adjust the uv for both the film grain and the noise, especially for the film grain, to make it look good on small or ultrawide screens, otherwise the pattern would look squeezed on mobiles or too stretched on ultrawide screens
+
+### Todo
+
+- [x] Add a good film grain layer, cheap stuff like a simple random function doesn't look good enough
+- [ ] Add options for different palettes
+- [ ] Add options for different noise/distortion patterns
+- [x] Consider making it look better on mobile, right now the color pattern looks a bit squeezed on mobile

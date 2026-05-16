@@ -1,6 +1,6 @@
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useLoader, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import * as THREE from "three";
 import { Perf } from "r3f-perf";
 import { useControls } from "leva";
@@ -9,8 +9,16 @@ import fragmentShader from "./shaders/fragment.glsl";
 import noiseFragmentShader from "./shaders/noise.glsl";
 
 export default function Experience() {
+    const size = useThree((state) => state.size);
     const quadRef = useRef();
-    const { noiseScaleX, noiseScaleY, warpStrength } = useControls({
+    const {
+        noiseScaleX,
+        noiseScaleY,
+        warpStrength,
+        grainStrength,
+        fluteWidth,
+        fluteStrength,
+    } = useControls({
         noiseScaleX: {
             value: 1.4,
             min: 0.1,
@@ -19,7 +27,7 @@ export default function Experience() {
             label: "Noise Scale X",
         },
         noiseScaleY: {
-            value: 1.2,
+            value: 1,
             min: 0.1,
             max: 5.0,
             step: 0.05,
@@ -32,7 +40,32 @@ export default function Experience() {
             step: 0.01,
             label: "Warp Strength",
         },
+        grainStrength: {
+            value: 0.5,
+            min: 0.0,
+            max: 1.0,
+            step: 0.005,
+            label: "Grain Strength",
+        },
+        fluteWidth: {
+            value: 70.0,
+            min: 5.0,
+            max: 200.0,
+            step: 1.0,
+            label: "Flute Width",
+        },
+        fluteStrength: {
+            value: 140.0,
+            min: 0.0,
+            max: 200.0,
+            step: 1.0,
+            label: "Flute Strength",
+        },
     });
+
+    useEffect(() => {
+        uniformsRef.current.uPixelRatio.value = window.devicePixelRatio;
+    }, [size]);
 
     const noiseSceneRef = useRef(null);
     const noiseCameraRef = useRef(null);
@@ -40,7 +73,7 @@ export default function Experience() {
     const noiseUniformsRef = useRef({
         uTime: { value: 0 },
         uNoiseScaleX: { value: 1.4 },
-        uNoiseScaleY: { value: 1.2 },
+        uNoiseScaleY: { value: 1 },
     });
 
     if (!noiseSceneRef.current) {
@@ -75,6 +108,17 @@ export default function Experience() {
         );
     }
 
+    const grainTexture = useLoader(
+        THREE.TextureLoader,
+        "./film_grain_contrasted.jpg",
+    );
+
+    useEffect(() => {
+        grainTexture.wrapS = THREE.RepeatWrapping;
+        grainTexture.wrapT = THREE.RepeatWrapping;
+        grainTexture.needsUpdate = true;
+    }, [grainTexture]);
+
     const uniformsRef = useRef({
         uResolution: {
             value: new THREE.Vector2(window.innerWidth, window.innerHeight),
@@ -87,6 +131,13 @@ export default function Experience() {
         },
         uWarpStrength: { value: 0.3 },
         uNoiseMap: { value: noiseFBORef.current.texture },
+        uGrainTexture: { value: grainTexture },
+        uGrainTextureSize: {
+            value: new THREE.Vector2(1920, 1260),
+        },
+        uGrainStrength: { value: 0.05 },
+        uFluteWidth: { value: 50.0 },
+        uFluteStrength: { value: 70.0 },
     });
 
     useFrame((state, delta) => {
@@ -104,6 +155,15 @@ export default function Experience() {
         );
         uniformsRef.current.uTime.value += delta;
         uniformsRef.current.uWarpStrength.value = warpStrength;
+        if (grainTexture.image) {
+            uniformsRef.current.uGrainTextureSize.value.set(
+                grainTexture.image.width,
+                grainTexture.image.height,
+            );
+        }
+        uniformsRef.current.uGrainStrength.value = grainStrength;
+        uniformsRef.current.uFluteWidth.value = fluteWidth;
+        uniformsRef.current.uFluteStrength.value = fluteStrength;
     });
 
     return (
