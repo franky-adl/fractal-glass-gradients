@@ -7,6 +7,11 @@ uniform sampler2D uGrainTexture;
 uniform float uGrainStrength;
 uniform float uFluteWidth;
 uniform float uFluteStrength;
+uniform vec3 uC1;
+uniform vec3 uC2;
+uniform vec3 uC3;
+uniform vec3 uC4;
+uniform vec3 uC5;
 varying vec2 vUv;
 varying vec2 vUvA;
 
@@ -34,11 +39,11 @@ void main() {
     vec2 p4 = vec2( 0.22 + sin(t * 0.3 + 2.3) * 0.24, -0.10 + cos(t * 0.7) * 0.14); // orange
     vec2 p5 = vec2( 0.30 + sin(t * 0.6 + 1.1) * 0.18,  0.06 + cos(t * 0.4) * 0.13); // teal
 
-    vec3 c1 = vec3(0.02, 0.20, 0.75); // blue
-    vec3 c2 = vec3(0.80, 0.05, 0.55); // magenta
-    vec3 c3 = vec3(0.95, 0.10, 0.15); // red
-    vec3 c4 = vec3(0.97, 0.48, 0.08); // orange
-    vec3 c5 = vec3(0.20, 0.65, 0.88); // teal/cyan
+    vec3 c1 = uC1;
+    vec3 c2 = uC2;
+    vec3 c3 = uC3;
+    vec3 c4 = uC4;
+    vec3 c5 = uC5;
 
     vec2 warpNoise = texture2D(uNoiseMap, vUv).rg * 2.0 - 1.0;
     vec2 warpedUv = uv + warpNoise * uWarpStrength;

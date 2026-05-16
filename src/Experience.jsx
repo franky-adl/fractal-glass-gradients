@@ -8,10 +8,35 @@ import vertexShader from "./shaders/vertex.glsl";
 import fragmentShader from "./shaders/fragment.glsl";
 import noiseFragmentShader from "./shaders/noise.glsl";
 
+const PALETTES = {
+    "Neon Flux": [
+        [0.02, 0.2, 0.75], // blue
+        [0.8, 0.05, 0.55], // magenta
+        [0.95, 0.1, 0.15], // red
+        [0.97, 0.48, 0.08], // orange
+        [0.2, 0.65, 0.88], // teal/cyan
+    ],
+    Sunset: [
+        [0.95, 0.25, 0.05], // deep orange
+        [0.85, 0.08, 0.35], // crimson
+        [1.0, 0.6, 0.0], // amber
+        [0.55, 0.05, 0.5], // purple
+        [1.0, 0.85, 0.2], // gold
+    ],
+    Aurora: [
+        [0.0, 0.75, 0.45], // emerald green
+        [0.05, 0.45, 0.95], // bright blue
+        [0.55, 0.05, 0.85], // violet
+        [0.0, 0.9, 0.7], // cyan-green
+        [0.3, 0.0, 0.65], // deep purple
+    ],
+};
+
 export default function Experience() {
     const size = useThree((state) => state.size);
     const quadRef = useRef();
     const {
+        palette,
         noiseScaleX,
         noiseScaleY,
         warpStrength,
@@ -19,6 +44,11 @@ export default function Experience() {
         fluteWidth,
         fluteStrength,
     } = useControls({
+        palette: {
+            value: "Neon Flux",
+            options: ["Neon Flux", "Sunset", "Aurora"],
+            label: "Color Palette",
+        },
         noiseScaleX: {
             value: 1.4,
             min: 0.1,
@@ -138,6 +168,11 @@ export default function Experience() {
         uGrainStrength: { value: 0.05 },
         uFluteWidth: { value: 50.0 },
         uFluteStrength: { value: 70.0 },
+        uC1: { value: new THREE.Vector3(...PALETTES["Neon Flux"][0]) },
+        uC2: { value: new THREE.Vector3(...PALETTES["Neon Flux"][1]) },
+        uC3: { value: new THREE.Vector3(...PALETTES["Neon Flux"][2]) },
+        uC4: { value: new THREE.Vector3(...PALETTES["Neon Flux"][3]) },
+        uC5: { value: new THREE.Vector3(...PALETTES["Neon Flux"][4]) },
     });
 
     useFrame((state, delta) => {
@@ -164,6 +199,12 @@ export default function Experience() {
         uniformsRef.current.uGrainStrength.value = grainStrength;
         uniformsRef.current.uFluteWidth.value = fluteWidth;
         uniformsRef.current.uFluteStrength.value = fluteStrength;
+        const pal = PALETTES[palette];
+        uniformsRef.current.uC1.value.set(...pal[0]);
+        uniformsRef.current.uC2.value.set(...pal[1]);
+        uniformsRef.current.uC3.value.set(...pal[2]);
+        uniformsRef.current.uC4.value.set(...pal[3]);
+        uniformsRef.current.uC5.value.set(...pal[4]);
     });
 
     return (
