@@ -7,6 +7,7 @@ uniform sampler2D uGrainTexture;
 uniform float uGrainStrength;
 uniform float uFluteWidth;
 uniform float uFluteStrength;
+uniform float uToneMapExposure;
 uniform vec3 uC1;
 uniform vec3 uC2;
 uniform vec3 uC3;
@@ -62,7 +63,7 @@ void main() {
     color += c5 * exp(-d5 * 25.0) * 0.8;
 
     // Exponential tone mapping — compresses overbright, keeps rich colors
-    color = 1.0 - exp(-color * 1.2);
+    color = 1.0 - exp(-color * uToneMapExposure);
 
     // Film grain effect
     float grain = texture2D(uGrainTexture, vUvA).r * 2.0 - 1.0; // Convert from [0, 1] to [-1, 1]

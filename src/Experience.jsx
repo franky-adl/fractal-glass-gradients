@@ -43,6 +43,7 @@ export default function Experience() {
         grainStrength,
         fluteWidth,
         fluteStrength,
+        patternBrightness,
     } = useControls({
         palette: {
             value: "Neon Flux",
@@ -90,6 +91,13 @@ export default function Experience() {
             max: 200.0,
             step: 1.0,
             label: "Flute Strength",
+        },
+        patternBrightness: {
+            value: 0.9,
+            min: 0.01,
+            max: 2.0,
+            step: 0.01,
+            label: "Pattern Brightness",
         },
     });
 
@@ -168,6 +176,7 @@ export default function Experience() {
         uGrainStrength: { value: 0.05 },
         uFluteWidth: { value: 50.0 },
         uFluteStrength: { value: 70.0 },
+        uToneMapExposure: { value: 0.1 },
         uC1: { value: new THREE.Vector3(...PALETTES["Neon Flux"][0]) },
         uC2: { value: new THREE.Vector3(...PALETTES["Neon Flux"][1]) },
         uC3: { value: new THREE.Vector3(...PALETTES["Neon Flux"][2]) },
@@ -199,6 +208,7 @@ export default function Experience() {
         uniformsRef.current.uGrainStrength.value = grainStrength;
         uniformsRef.current.uFluteWidth.value = fluteWidth;
         uniformsRef.current.uFluteStrength.value = fluteStrength;
+        uniformsRef.current.uToneMapExposure.value = patternBrightness;
         const pal = PALETTES[palette];
         uniformsRef.current.uC1.value.set(...pal[0]);
         uniformsRef.current.uC2.value.set(...pal[1]);
