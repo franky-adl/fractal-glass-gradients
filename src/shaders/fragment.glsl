@@ -66,6 +66,10 @@ vec2 rotate2d(vec2 v, float angle) {
     return m * v;
 }
 
+/**
+ * Generates a dynamic scene of colorful Gaussian ellipses with a fluted glass distortion effect.
+ * param uv: Use a fluted uv for the input to keep the fluted glass effect
+ */
 vec3 GaussianEllipses(vec2 uv) {
     float t = uTime * 0.6 + 3.5;
 

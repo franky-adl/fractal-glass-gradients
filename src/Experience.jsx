@@ -60,7 +60,7 @@ export default function Experience() {
             fluteWidth,
             fluteStrength,
             patternBrightness,
-            animSpeed,
+            warpSpeed,
             algo,
             patternPreset,
         },
@@ -125,7 +125,7 @@ export default function Experience() {
             step: 0.01,
             label: "Pattern Brightness",
         },
-        animSpeed: {
+        warpSpeed: {
             value: 0.12,
             min: 0.0,
             max: 1.0,
@@ -154,7 +154,7 @@ export default function Experience() {
         uTime: { value: 0 },
         uNoiseScaleX: { value: 1.4 },
         uNoiseScaleY: { value: 1 },
-        uAnimSpeed: { value: 0.12 },
+        uWarpSpeed: { value: 0.12 },
     });
 
     if (!noiseSceneRef.current) {
@@ -232,7 +232,7 @@ export default function Experience() {
         noiseUniformsRef.current.uTime.value += delta;
         noiseUniformsRef.current.uNoiseScaleX.value = noiseScaleX;
         noiseUniformsRef.current.uNoiseScaleY.value = noiseScaleY;
-        noiseUniformsRef.current.uAnimSpeed.value = animSpeed;
+        noiseUniformsRef.current.uWarpSpeed.value = warpSpeed;
         const { gl } = state;
         gl.setRenderTarget(noiseFBORef.current);
         gl.render(noiseSceneRef.current, noiseCameraRef.current);

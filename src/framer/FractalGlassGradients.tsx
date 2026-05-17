@@ -1,7 +1,95 @@
-import { useRef, useEffect, Suspense, CSSProperties, ReactNode } from "react";
+import { useRef, useEffect } from "react";
 import { addPropertyControls, ControlType } from "framer";
-import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
-import * as THREE from "three";
+import {
+    WebGLRenderer,
+    WebGLRenderTarget,
+    Scene,
+    PerspectiveCamera,
+    OrthographicCamera,
+    Vector2,
+    Vector3,
+    Clock,
+    PlaneGeometry,
+    ShaderMaterial,
+    Mesh,
+    TextureLoader,
+    Color,
+    RGBAFormat,
+    LinearFilter,
+    RepeatWrapping,
+    MirroredRepeatWrapping,
+} from "https://cdn.jsdelivr.net/npm/three@0.182.0/+esm";
+
+// Type definitions
+type RGB = [number, number, number];
+type PaletteName = "Neon Flux" | "Sunset" | "Aurora";
+type Palette = Record<PaletteName, RGB[]>;
+type AlgoType = "Algo1" | "Algo2";
+type PresetName = "Balanced" | "Flow-like";
+type PresetMode = "Balanced" | "Flow-like" | "Custom";
+
+interface PresetConfig {
+    noiseScaleX: number;
+    noiseScaleY: number;
+    warpStrength: number;
+    algo: AlgoType;
+}
+
+type Presets = Record<PresetName, PresetConfig>;
+
+interface FractalGlassGradientsProps {
+    patternPreset: PresetMode;
+    palette: PaletteName;
+    noiseScaleX: number;
+    noiseScaleY: number;
+    warpStrength: number;
+    grainStrength: number;
+    fluteWidth: number;
+    fluteStrength: number;
+    patternBrightness: number;
+    warpSpeed: number;
+    algo: AlgoType;
+}
+
+// Constants
+const PALETTES: Palette = {
+    "Neon Flux": [
+        [0.02, 0.2, 0.75], // blue
+        [0.8, 0.05, 0.55], // magenta
+        [0.95, 0.1, 0.15], // red
+        [0.97, 0.48, 0.08], // orange
+        [0.2, 0.65, 0.88], // teal/cyan
+    ],
+    Sunset: [
+        [0.95, 0.25, 0.05], // deep orange
+        [0.85, 0.08, 0.35], // crimson
+        [1.0, 0.6, 0.0], // amber
+        [0.55, 0.05, 0.5], // purple
+        [1.0, 0.85, 0.2], // gold
+    ],
+    Aurora: [
+        [0.0, 0.75, 0.45], // emerald green
+        [0.05, 0.45, 0.95], // bright blue
+        [0.55, 0.05, 0.85], // violet
+        [0.0, 0.9, 0.7], // cyan-green
+        [0.3, 0.0, 0.65], // deep purple
+    ],
+};
+
+const PRESETS: Presets = {
+    Balanced: {
+        noiseScaleX: 1.4,
+        noiseScaleY: 1.0,
+        warpStrength: 0.3,
+        algo: "Algo1",
+    },
+    "Flow-like": {
+        noiseScaleX: 0.35,
+        noiseScaleY: 0.55,
+        warpStrength: 0.4,
+        algo: "Algo2",
+    },
+};
 
 const snoise2dShader = `
 vec3 mod289(vec3 x) {
@@ -158,6 +246,10 @@ vec2 rotate2d(vec2 v, float angle) {
     return m * v;
 }
 
+/**
+ * Generates a dynamic scene of colorful Gaussian ellipses with a fluted glass distortion effect.
+ * param uv: Use a fluted uv for the input to keep the fluted glass effect
+ */
 vec3 GaussianEllipses(vec2 uv) {
     float t = uTime * 0.6 + 3.5;
 
@@ -223,7 +315,6 @@ void main() {
     float flutedX = (uFluteStrength) * (fractUv.x - 0.5);
     float flutedY = -(uFluteStrength) * atanh(pow(fractUv.x, 6.));
     vec2 flutedCoords = vec2(mappedCoords.x + flutedX, mappedCoords.y + flutedY);
-    // vec2 flutedUv = (flutedCoords + uResolution * 0.5) / uResolution;
     vec2 flutedUv = flutedCoords / 1000.;
 
     vec3 color = (uAlgo == 0) ? GaussianBlobs(flutedUv) : GaussianEllipses(flutedUv);
@@ -244,13 +335,13 @@ const noiseFragmentShader = `
 uniform float uTime;
 uniform float uNoiseScaleX;
 uniform float uNoiseScaleY;
-uniform float uAnimSpeed;
+uniform float uWarpSpeed;
 varying vec2 vUvA;
 
 ${snoise2dShader}
 
 void main() {
-    float t = uTime * uAnimSpeed;
+    float t = uTime * uWarpSpeed;
     // Two independent samples for x and y warp directions
     float nx = snoise(vUvA * vec2(uNoiseScaleX, uNoiseScaleY) + t * 0.5);
     float ny = snoise(vUvA * vec2(uNoiseScaleX, uNoiseScaleY) * 0.93 - t * 0.3);
@@ -259,251 +350,16 @@ void main() {
 }
 `;
 
-// Type definitions
-type RGB = [number, number, number];
-type PaletteName = "Neon Flux" | "Sunset" | "Aurora";
-type Palette = Record<PaletteName, RGB[]>;
-type AlgoType = "Algo1" | "Algo2";
-type PresetName = "Balanced" | "Flow-like";
-type PresetMode = "Balanced" | "Flow-like" | "Custom";
-
-interface PresetConfig {
-    noiseScaleX: number;
-    noiseScaleY: number;
-    warpStrength: number;
-    algo: AlgoType;
-}
-
-type Presets = Record<PresetName, PresetConfig>;
-
-interface SceneProps {
-    palette: PaletteName;
-    noiseScaleX: number;
-    noiseScaleY: number;
-    warpStrength: number;
-    grainStrength: number;
-    fluteWidth: number;
-    fluteStrength: number;
-    patternBrightness: number;
-    animSpeed: number;
-    algo: AlgoType;
-    grainTextureUrl: string;
-}
-
-interface FractalGlassGradientsProps {
-    patternPreset: PresetMode;
-    palette: PaletteName;
-    noiseScaleX: number;
-    noiseScaleY: number;
-    warpStrength: number;
-    grainStrength: number;
-    fluteWidth: number;
-    fluteStrength: number;
-    patternBrightness: number;
-    animSpeed: number;
-    algo: AlgoType;
-    grainTextureUrl: string;
-    style?: CSSProperties;
-}
-
-// Constants
-const PALETTES: Palette = {
-    "Neon Flux": [
-        [0.02, 0.2, 0.75], // blue
-        [0.8, 0.05, 0.55], // magenta
-        [0.95, 0.1, 0.15], // red
-        [0.97, 0.48, 0.08], // orange
-        [0.2, 0.65, 0.88], // teal/cyan
-    ],
-    Sunset: [
-        [0.95, 0.25, 0.05], // deep orange
-        [0.85, 0.08, 0.35], // crimson
-        [1.0, 0.6, 0.0], // amber
-        [0.55, 0.05, 0.5], // purple
-        [1.0, 0.85, 0.2], // gold
-    ],
-    Aurora: [
-        [0.0, 0.75, 0.45], // emerald green
-        [0.05, 0.45, 0.95], // bright blue
-        [0.55, 0.05, 0.85], // violet
-        [0.0, 0.9, 0.7], // cyan-green
-        [0.3, 0.0, 0.65], // deep purple
-    ],
-};
-
-const PRESETS: Presets = {
-    Balanced: {
-        noiseScaleX: 1.4,
-        noiseScaleY: 1.0,
-        warpStrength: 0.3,
-        algo: "Algo1",
-    },
-    "Flow-like": {
-        noiseScaleX: 0.35,
-        noiseScaleY: 0.55,
-        warpStrength: 0.4,
-        algo: "Algo2",
-    },
-};
-
-// Components
-function Scene({
-    palette,
-    noiseScaleX,
-    noiseScaleY,
-    warpStrength,
-    grainStrength,
-    fluteWidth,
-    fluteStrength,
-    patternBrightness,
-    animSpeed,
-    algo,
-    grainTextureUrl,
-}: SceneProps): ReactNode {
-    const size = useThree((state) => state.size);
-    const quadRef = useRef(null);
-
-    const noiseSceneRef = useRef<THREE.Scene | null>(null);
-    const noiseCameraRef = useRef<THREE.OrthographicCamera | null>(null);
-    const noiseFBORef = useRef<THREE.WebGLRenderTarget | null>(null);
-    const noiseUniformsRef = useRef<Record<string, { value: unknown }>>({
-        uTime: { value: 0 },
-        uNoiseScaleX: { value: noiseScaleX },
-        uNoiseScaleY: { value: noiseScaleY },
-        uAnimSpeed: { value: animSpeed },
-    });
-
-    if (!noiseSceneRef.current) {
-        const rt = new THREE.WebGLRenderTarget(256, 256, {
-            format: THREE.RGBAFormat,
-            magFilter: THREE.LinearFilter,
-            minFilter: THREE.LinearFilter,
-        });
-        rt.texture.wrapS = THREE.MirroredRepeatWrapping;
-        rt.texture.wrapT = THREE.MirroredRepeatWrapping;
-        noiseFBORef.current = rt;
-
-        const scene = new THREE.Scene();
-        scene.add(
-            new THREE.Mesh(
-                new THREE.PlaneGeometry(2, 2),
-                new THREE.ShaderMaterial({
-                    vertexShader,
-                    fragmentShader: noiseFragmentShader,
-                    uniforms: noiseUniformsRef.current,
-                }),
-            ),
-        );
-        noiseSceneRef.current = scene;
-        noiseCameraRef.current = new THREE.OrthographicCamera(
-            -1,
-            1,
-            1,
-            -1,
-            0,
-            1,
-        );
-    }
-
-    const grainTexture = useLoader(THREE.TextureLoader, grainTextureUrl);
-
-    useEffect(() => {
-        grainTexture.wrapS = THREE.RepeatWrapping;
-        grainTexture.wrapT = THREE.RepeatWrapping;
-        grainTexture.needsUpdate = true;
-    }, [grainTexture]);
-
-    const uniformsRef = useRef<Record<string, { value: unknown }>>({
-        uResolution: {
-            value: new THREE.Vector2(window.innerWidth, window.innerHeight),
-        },
-        uPixelRatio: { value: window.devicePixelRatio },
-        uTime: { value: 0 },
-        uWarpStrength: { value: warpStrength },
-        uNoiseMap: { value: noiseFBORef.current?.texture },
-        uGrainTexture: { value: grainTexture },
-        uGrainTextureSize: { value: new THREE.Vector2(1920, 1260) },
-        uGrainStrength: { value: grainStrength },
-        uFluteWidth: { value: fluteWidth },
-        uFluteStrength: { value: fluteStrength },
-        uToneMapExposure: { value: patternBrightness },
-        uC1: { value: new THREE.Vector3(...PALETTES["Neon Flux"][0]) },
-        uC2: { value: new THREE.Vector3(...PALETTES["Neon Flux"][1]) },
-        uC3: { value: new THREE.Vector3(...PALETTES["Neon Flux"][2]) },
-        uC4: { value: new THREE.Vector3(...PALETTES["Neon Flux"][3]) },
-        uC5: { value: new THREE.Vector3(...PALETTES["Neon Flux"][4]) },
-        uAlgo: { value: 1 },
-    });
-
-    useEffect(() => {
-        uniformsRef.current.uPixelRatio.value = window.devicePixelRatio;
-    }, [size]);
-
-    useFrame((state, delta) => {
-        noiseUniformsRef.current.uTime.value += delta;
-        noiseUniformsRef.current.uNoiseScaleX.value = noiseScaleX;
-        noiseUniformsRef.current.uNoiseScaleY.value = noiseScaleY;
-        noiseUniformsRef.current.uAnimSpeed.value = animSpeed;
-
-        const { gl } = state;
-        gl.setRenderTarget(noiseFBORef.current);
-        gl.render(noiseSceneRef.current!, noiseCameraRef.current!);
-        gl.setRenderTarget(null);
-
-        uniformsRef.current.uResolution.value.set(
-            state.size.width,
-            state.size.height,
-        );
-        uniformsRef.current.uTime.value += delta;
-        uniformsRef.current.uWarpStrength.value = warpStrength;
-        if (grainTexture.image) {
-            uniformsRef.current.uGrainTextureSize.value.set(
-                grainTexture.image.width,
-                grainTexture.image.height,
-            );
-        }
-        uniformsRef.current.uGrainStrength.value = grainStrength;
-        uniformsRef.current.uFluteWidth.value = fluteWidth;
-        uniformsRef.current.uFluteStrength.value = fluteStrength;
-        uniformsRef.current.uToneMapExposure.value = patternBrightness;
-        const pal = PALETTES[palette];
-        uniformsRef.current.uC1.value.set(...pal[0]);
-        uniformsRef.current.uC2.value.set(...pal[1]);
-        uniformsRef.current.uC3.value.set(...pal[2]);
-        uniformsRef.current.uC4.value.set(...pal[3]);
-        uniformsRef.current.uC5.value.set(...pal[4]);
-        uniformsRef.current.uAlgo.value = algo === "Algo1" ? 0 : 1;
-    });
-
-    return (
-        <mesh ref={quadRef}>
-            <planeGeometry args={[2, 2, 1, 1]} />
-            <shaderMaterial
-                vertexShader={vertexShader}
-                fragmentShader={fragmentShader}
-                uniforms={uniformsRef.current}
-            />
-        </mesh>
-    );
-}
-
 /**
- * Fractal Glass Gradients — Framer component
+ * @framerIntrinsicWidth 800
+ * @framerIntrinsicHeight 600
  *
- * When patternPreset is "Balanced" or "Flow-like", the preset drives
- * noiseScaleX, noiseScaleY, warpStrength, and algo. Switch to "Custom"
- * to expose and edit those controls independently.
- *
- * Note: grainTextureUrl defaults to "./film_grain_contrasted.jpg". When
- * publishing to Framer, replace this with the CDN URL of your uploaded
- * grain texture asset.
- *
- * @framerSupportedLayoutWidth any
- * @framerSupportedLayoutHeight any
+ * @framerSupportedLayoutWidth any-prefer-fixed
+ * @framerSupportedLayoutHeight any-prefer-fixed
  */
-export function FractalGlassGradients(
+export default function FractalGlassGradients(
     props: FractalGlassGradientsProps,
-): ReactNode {
+): JSX.Element {
     const {
         patternPreset,
         palette,
@@ -514,11 +370,11 @@ export function FractalGlassGradients(
         fluteWidth,
         fluteStrength,
         patternBrightness,
-        animSpeed,
+        warpSpeed,
         algo,
-        grainTextureUrl,
-        style,
     } = props;
+    const grainTextureUrl =
+        "https://cdn.jsdelivr.net/gh/franky-adl/fractal-glass-gradients@master/public/film_grain_contrasted.jpg";
 
     const preset = patternPreset !== "Custom" ? PRESETS[patternPreset] : null;
     const effectiveNoiseScaleX = preset ? preset.noiseScaleX : noiseScaleX;
@@ -526,85 +382,248 @@ export function FractalGlassGradients(
     const effectiveWarpStrength = preset ? preset.warpStrength : warpStrength;
     const effectiveAlgo = preset ? preset.algo : algo;
 
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    const noiseSceneRef = useRef<Scene | null>(null);
+    const noiseCameraRef = useRef<OrthographicCamera | null>(null);
+    const noiseFBORef = useRef<WebGLRenderTarget | null>(null);
+    const noiseUniformsRef = useRef<Record<string, { value: unknown }>>({
+        uTime: { value: 0 },
+        uNoiseScaleX: { value: effectiveNoiseScaleX },
+        uNoiseScaleY: { value: effectiveNoiseScaleY },
+        uWarpSpeed: { value: warpSpeed },
+    });
+
+    const uniformsRef = useRef<
+        Record<string, { value: unknown | Vector2 | Vector3 }>
+    >({
+        uResolution: {
+            value: new Vector2(window.innerWidth, window.innerHeight),
+        },
+        uPixelRatio: { value: window.devicePixelRatio },
+        uTime: { value: 0 },
+        uWarpStrength: { value: effectiveWarpStrength },
+        uNoiseMap: { value: noiseFBORef.current?.texture },
+        uGrainTexture: { value: null },
+        uGrainTextureSize: { value: new Vector2(1920, 1260) },
+        uGrainStrength: { value: grainStrength },
+        uFluteWidth: { value: fluteWidth },
+        uFluteStrength: { value: fluteStrength },
+        uToneMapExposure: { value: patternBrightness },
+        uC1: { value: new Vector3(...PALETTES["Neon Flux"][0]) },
+        uC2: { value: new Vector3(...PALETTES["Neon Flux"][1]) },
+        uC3: { value: new Vector3(...PALETTES["Neon Flux"][2]) },
+        uC4: { value: new Vector3(...PALETTES["Neon Flux"][3]) },
+        uC5: { value: new Vector3(...PALETTES["Neon Flux"][4]) },
+        uAlgo: { value: 0 },
+    });
+
+    function setupNoiseScene() {
+        if (!noiseSceneRef.current) {
+            const rt = new WebGLRenderTarget(256, 256, {
+                format: RGBAFormat,
+                magFilter: LinearFilter,
+                minFilter: LinearFilter,
+            });
+            rt.texture.wrapS = MirroredRepeatWrapping;
+            rt.texture.wrapT = MirroredRepeatWrapping;
+            noiseFBORef.current = rt;
+
+            const scene = new Scene();
+            scene.add(
+                new Mesh(
+                    new PlaneGeometry(2, 2),
+                    new ShaderMaterial({
+                        vertexShader,
+                        fragmentShader: noiseFragmentShader,
+                        uniforms: noiseUniformsRef.current,
+                    }),
+                ),
+            );
+            noiseSceneRef.current = scene;
+            noiseCameraRef.current = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        }
+    }
+
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        // Lower res buffer for noise map rendering
+        setupNoiseScene();
+
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+
+        const renderer = new WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(width, height);
+        container.appendChild(renderer.domElement);
+
+        const scene = new Scene();
+
+        const camera = new PerspectiveCamera(45, width / height, 0.1, 100);
+        camera.position.set(0, 0, 3);
+
+        const textureLoader = new TextureLoader();
+        const grainTexture = textureLoader.load(grainTextureUrl, (texture) => {
+            uniformsRef.current.uGrainTexture.value = texture;
+            texture.needsUpdate = true;
+        });
+        grainTexture.wrapS = RepeatWrapping;
+        grainTexture.wrapT = RepeatWrapping;
+
+        const geometry = new PlaneGeometry(2, 2, 1, 1);
+        const material = new ShaderMaterial({
+            vertexShader,
+            fragmentShader,
+            uniforms: uniformsRef.current,
+        });
+        const fullScreenQuad = new Mesh(geometry, material);
+        scene.add(fullScreenQuad);
+
+        let rafId: number;
+        const clock = new Clock();
+
+        function animate(now: number) {
+            rafId = requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+
+            noiseUniformsRef.current.uTime.value += delta;
+            uniformsRef.current.uTime.value += delta;
+
+            renderer.setRenderTarget(noiseFBORef.current);
+            renderer.render(noiseSceneRef.current, noiseCameraRef.current);
+            renderer.setRenderTarget(null);
+
+            uniformsRef.current.uNoiseMap.value = noiseFBORef.current.texture;
+
+            renderer.render(scene, camera);
+        }
+        rafId = requestAnimationFrame(animate);
+
+        const resizeObserver = new ResizeObserver(() => {
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            if (uniformsRef.current) {
+                uniformsRef.current.uPixelRatio.value = window.devicePixelRatio;
+                uniformsRef.current.uResolution.value.set(w, h);
+            }
+        });
+        resizeObserver.observe(container);
+
+        return () => {
+            cancelAnimationFrame(rafId);
+            resizeObserver.disconnect();
+            renderer.dispose();
+            geometry.dispose();
+            material.dispose();
+            grainTexture.dispose();
+            container.removeChild(renderer.domElement);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (noiseUniformsRef.current) {
+            noiseUniformsRef.current.uNoiseScaleX.value = effectiveNoiseScaleX;
+            noiseUniformsRef.current.uNoiseScaleY.value = effectiveNoiseScaleY;
+            noiseUniformsRef.current.uWarpSpeed.value = warpSpeed;
+        }
+        if (uniformsRef.current) {
+            uniformsRef.current.uWarpStrength.value = effectiveWarpStrength;
+            uniformsRef.current.uGrainStrength.value = grainStrength;
+            uniformsRef.current.uFluteWidth.value = fluteWidth;
+            uniformsRef.current.uFluteStrength.value = fluteStrength;
+            uniformsRef.current.uToneMapExposure.value = patternBrightness;
+            const pal = PALETTES[palette];
+            (uniformsRef.current.uC1.value as Vector3).set(...pal[0]);
+            (uniformsRef.current.uC2.value as Vector3).set(...pal[1]);
+            (uniformsRef.current.uC3.value as Vector3).set(...pal[2]);
+            (uniformsRef.current.uC4.value as Vector3).set(...pal[3]);
+            (uniformsRef.current.uC5.value as Vector3).set(...pal[4]);
+
+            uniformsRef.current.uAlgo.value = effectiveAlgo === "Algo1" ? 0 : 1;
+        }
+    }, [
+        effectiveNoiseScaleX,
+        effectiveNoiseScaleY,
+        warpSpeed,
+        effectiveWarpStrength,
+        grainStrength,
+        fluteWidth,
+        fluteStrength,
+        patternBrightness,
+        palette,
+        effectiveAlgo,
+    ]);
+
     return (
         <div
-            style={{
-                width: "100%",
-                height: "100%",
-                overflow: "hidden",
-                ...style,
-            }}
-        >
-            <Canvas
-                camera={{ fov: 45, near: 0.1, far: 200, position: [0, 0, 0] }}
-            >
-                <Suspense fallback={null}>
-                    <Scene
-                        palette={palette}
-                        noiseScaleX={effectiveNoiseScaleX}
-                        noiseScaleY={effectiveNoiseScaleY}
-                        warpStrength={effectiveWarpStrength}
-                        grainStrength={grainStrength}
-                        fluteWidth={fluteWidth}
-                        fluteStrength={fluteStrength}
-                        patternBrightness={patternBrightness}
-                        animSpeed={animSpeed}
-                        algo={effectiveAlgo}
-                        grainTextureUrl={grainTextureUrl}
-                    />
-                </Suspense>
-            </Canvas>
-        </div>
+            ref={containerRef}
+            style={{ width: "100%", height: "100%", background: "#111" }}
+        />
     );
 }
 
 FractalGlassGradients.defaultProps = {
-    patternPreset: "Flow-like",
+    patternPreset: "Balanced",
     palette: "Neon Flux",
-    noiseScaleX: 0.35,
-    noiseScaleY: 0.55,
-    warpStrength: 0.4,
+    noiseScaleX: 1.4,
+    noiseScaleY: 1.0,
+    warpStrength: 0.3,
     grainStrength: 0.5,
     fluteWidth: 70.0,
     fluteStrength: 140.0,
     patternBrightness: 0.9,
-    animSpeed: 0.12,
-    algo: "Algo2",
-    grainTextureUrl: "./film_grain_contrasted.jpg",
+    warpSpeed: 0.12,
+    algo: "Algo1",
 } as Partial<FractalGlassGradientsProps>;
 
 addPropertyControls(FractalGlassGradients as any, {
     patternPreset: {
         type: ControlType.Enum,
-        title: "Pattern Preset",
+        title: "Pattern",
         options: ["Balanced", "Flow-like", "Custom"],
-        defaultValue: "Flow-like",
+        defaultValue: "Balanced",
     },
     palette: {
         type: ControlType.Enum,
-        title: "Color Palette",
+        title: "Palette",
         options: ["Neon Flux", "Sunset", "Aurora"],
         defaultValue: "Neon Flux",
     },
     // Preset-controlled group — hidden unless "Custom" is selected
+    algo: {
+        type: ControlType.Enum,
+        title: "Algo",
+        options: ["Algo1", "Algo2"],
+        defaultValue: "Algo1",
+        hidden(props: Partial<FractalGlassGradientsProps>) {
+            return props.patternPreset !== "Custom";
+        },
+    },
     noiseScaleX: {
         type: ControlType.Number,
-        title: "Noise Scale X",
+        title: "Warp X-Scale",
         min: 0.1,
         max: 5.0,
         step: 0.05,
-        defaultValue: 0.35,
+        defaultValue: 1.4,
         hidden(props: Partial<FractalGlassGradientsProps>) {
             return props.patternPreset !== "Custom";
         },
     },
     noiseScaleY: {
         type: ControlType.Number,
-        title: "Noise Scale Y",
+        title: "Warp Y-Scale",
         min: 0.1,
         max: 5.0,
         step: 0.05,
-        defaultValue: 0.55,
+        defaultValue: 1.0,
         hidden(props: Partial<FractalGlassGradientsProps>) {
             return props.patternPreset !== "Custom";
         },
@@ -615,24 +634,23 @@ addPropertyControls(FractalGlassGradients as any, {
         min: 0.0,
         max: 2.0,
         step: 0.01,
-        defaultValue: 0.4,
-        hidden(props: Partial<FractalGlassGradientsProps>) {
-            return props.patternPreset !== "Custom";
-        },
-    },
-    algo: {
-        type: ControlType.Enum,
-        title: "Algo",
-        options: ["Algo1", "Algo2"],
-        defaultValue: "Algo2",
+        defaultValue: 0.3,
         hidden(props: Partial<FractalGlassGradientsProps>) {
             return props.patternPreset !== "Custom";
         },
     },
     // Independent controls always visible
+    warpSpeed: {
+        type: ControlType.Number,
+        title: "Warp Speed",
+        min: 0.0,
+        max: 2.0,
+        step: 0.01,
+        defaultValue: 0.12,
+    },
     grainStrength: {
         type: ControlType.Number,
-        title: "Grain Strength",
+        title: "Film Grain",
         min: 0.0,
         max: 1.0,
         step: 0.005,
@@ -648,7 +666,7 @@ addPropertyControls(FractalGlassGradients as any, {
     },
     fluteStrength: {
         type: ControlType.Number,
-        title: "Flute Strength",
+        title: "Flute Refraction",
         min: 0.0,
         max: 200.0,
         step: 1.0,
@@ -656,24 +674,10 @@ addPropertyControls(FractalGlassGradients as any, {
     },
     patternBrightness: {
         type: ControlType.Number,
-        title: "Pattern Brightness",
+        title: "Brightness",
         min: 0.01,
         max: 2.0,
         step: 0.01,
         defaultValue: 0.9,
-    },
-    animSpeed: {
-        type: ControlType.Number,
-        title: "Animation Speed",
-        min: 0.0,
-        max: 1.0,
-        step: 0.01,
-        defaultValue: 0.12,
-    },
-    grainTextureUrl: {
-        type: ControlType.String,
-        title: "Grain Texture URL",
-        defaultValue: "./film_grain_contrasted.jpg",
-        placeholder: "Enter CDN URL for grain texture…",
     },
 });
