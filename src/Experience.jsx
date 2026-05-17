@@ -69,12 +69,17 @@ export default function Experience() {
         patternPreset: {
             value: "Flow-like",
             options: ["Balanced", "Flow-like"],
-            label: "Pattern Preset",
+            label: "Pattern",
         },
         palette: {
             value: "Neon Flux",
             options: ["Neon Flux", "Sunset", "Aurora"],
-            label: "Color Palette",
+            label: "Palette",
+        },
+        algo: {
+            value: "Algo2",
+            options: ["Algo1", "Algo2"],
+            label: "Algo",
         },
         noiseScaleX: {
             value: 0.35,
@@ -97,12 +102,19 @@ export default function Experience() {
             step: 0.01,
             label: "Warp Strength",
         },
+        warpSpeed: {
+            value: 0.12,
+            min: 0.0,
+            max: 1.0,
+            step: 0.01,
+            label: "Warp Speed",
+        },
         grainStrength: {
             value: 0.5,
             min: 0.0,
             max: 1.0,
             step: 0.005,
-            label: "Grain Strength",
+            label: "Film Grain",
         },
         fluteWidth: {
             value: 70.0,
@@ -116,26 +128,14 @@ export default function Experience() {
             min: 0.0,
             max: 200.0,
             step: 1.0,
-            label: "Flute Strength",
+            label: "Flute Refraction",
         },
         patternBrightness: {
             value: 0.9,
             min: 0.01,
             max: 2.0,
             step: 0.01,
-            label: "Pattern Brightness",
-        },
-        warpSpeed: {
-            value: 0.12,
-            min: 0.0,
-            max: 1.0,
-            step: 0.01,
-            label: "Animation Speed",
-        },
-        algo: {
-            value: "Algo2",
-            options: ["Algo1", "Algo2"],
-            label: "Algo",
+            label: "Brightness",
         },
     }));
 
