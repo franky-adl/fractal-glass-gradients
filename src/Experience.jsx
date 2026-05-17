@@ -266,7 +266,7 @@ export default function Experience() {
     return (
         <>
             <OrbitControls makeDefault />
-            <Perf position="top-left" />
+            {/* <Perf position="top-left" /> */}
             <mesh ref={quadRef}>
                 <planeGeometry args={[2, 2, 1, 1]} />
                 <shaderMaterial
